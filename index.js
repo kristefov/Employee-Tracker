@@ -41,15 +41,22 @@ const choices = () => {
         choices();
       });
     } else if (answers.choice === "View all roles") {
-      db.query("SELECT * FROM roles", (err, result) => {
+      db.query("SELECT  roles.title, roles.id, departments.department_name, roles.salary FROM roles  JOIN departments ON roles.department_id = departments.id", (err, result) => {
         console.table(result);
         choices();
       });
     } else if (answers.choice === "View all employees") {
-      db.query("SELECT * FROM employees", (err, result) =>
-        console.table(result)
+      db.query(`SELECT 
+      employees.id, employees.first_name, employees.last_name, roles.title, departments.department_name, roles.salary, 
+      CONCAT(manager.first_name, " ", manager.last_name) AS "Manager"
+      FROM employees AS employees
+      LEFT JOIN employees AS manager ON employees.manager_id = manager.id
+      JOIN roles ON employees.role_id = roles.id
+      JOIN departments ON roles.department_id = departments.id`, (err, result) =>{
+        console.table(result) 
+        choices();}
       );
-      choices();
+     
     } else if (answers.choice === "Add a department") {
       prompt({
         name: "department",
@@ -125,14 +132,101 @@ const choices = () => {
     } else if (answers.choice === "Add an employee") {
       db.query("SELECT * FROM roles", (err, resultRoles) => {
         resultRoles = resultRoles.map((roles) => {
-          
-          return { name: roles.title, value: roles.id };
+          return {
+            name: roles.title,
+            value: roles.id,
+          };
         });
-        db.query("SELECT first_name, last_name FROM employees WHERE manager_id = NOT NULL", (err,result) => {
-          console.log(result)
-        }) 
-      } 
-      );
+        db.query(
+          "SELECT id, first_name, last_name FROM employees WHERE manager_id IS NULL",
+          (err, resultEmployees) => {
+            resultEmployees = resultEmployees.map((emp) => {
+              return {
+                name: emp.first_name + ' ' + emp.last_name,
+                value: emp.id,
+              };
+            });
+            prompt([
+              {
+                name: "first",
+                type: "input",
+                message: "What is the name of the employee?",
+                validate: (answer) => {
+                  if (answer != "") {
+                    return true;
+                  }
+                  return "Please add the name for the employee!";
+                },
+              },
+              {
+                name: "last",
+                type: "input",
+                message: "What is the last name of the employee?",
+                validate: (answer) => {
+                  if (answer != "") {
+                    return true;
+                  }
+                  return "Please add the last name for the employee!";
+                },
+              },
+              {
+                name: "role",
+                type: "list",
+                message: "Select a role?",
+                choices: resultRoles,
+              },
+              {
+                name: "manager",
+                type: "list",
+                message: "Select a Manager?",
+                choices: resultEmployees || null,
+              },
+            ]).then((answers) => {
+              db.query(
+                "INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)",
+                [answers.first, answers.last, answers.role, answers.manager],
+                (err, result) => {
+                  console.log("Employee successfully saved");
+                  choices();
+                }
+              );
+            });
+          }
+        );
+      });
+    } else if (answers.choice === "Update an employee role") {
+        db.query(
+          "SELECT id, first_name, last_name FROM employees",
+          (err, result) => {
+            result = result.map((emp) => {
+              return {
+                name: emp.first_name + ' ' + emp.last_name,
+                value: emp.id,
+              };
+            });
+            prompt([
+              {
+                name: "first",
+                type: "input",
+                message: "What is the name of the employee?",
+                validate: (answer) => {
+                  if (answer != "") {
+                    return true;
+                  }
+                  return "Please add the name for the employee!";
+                }}
+            ]).then((answers) => {
+              db.query(
+                "INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)",
+                [answers.first, answers.last, answers.role, answers.manager],
+                (err, result) => {
+                  console.log("Employee successfully saved");
+                  choices();
+                }
+              );
+            });
+          }
+        );
     }
   });
 };
