@@ -29,10 +29,6 @@ const choices = () => {
       "Add a role",
       "Add an employee",
       "Update an employee role",
-      "View all employees by department",
-      "View all employees by manager",
-      "Remove employee",
-      "Update employee manager",
     ],
   }).then((answers) => {
     if (answers.choice === "View all departments") {
@@ -41,22 +37,27 @@ const choices = () => {
         choices();
       });
     } else if (answers.choice === "View all roles") {
-      db.query("SELECT  roles.title, roles.id, departments.department_name, roles.salary FROM roles  JOIN departments ON roles.department_id = departments.id", (err, result) => {
-        console.table(result);
-        choices();
-      });
+      db.query(
+        "SELECT  roles.id, roles.title, departments.department_name, roles.salary FROM roles  JOIN departments ON roles.department_id = departments.id",
+        (err, result) => {
+          console.table(result);
+          choices();
+        }
+      );
     } else if (answers.choice === "View all employees") {
-      db.query(`SELECT 
+      db.query(
+        `SELECT 
       employees.id, employees.first_name, employees.last_name, roles.title, departments.department_name, roles.salary, 
       CONCAT(manager.first_name, " ", manager.last_name) AS "Manager"
       FROM employees AS employees
       LEFT JOIN employees AS manager ON employees.manager_id = manager.id
       JOIN roles ON employees.role_id = roles.id
-      JOIN departments ON roles.department_id = departments.id`, (err, result) =>{
-        console.table(result) 
-        choices();}
+      JOIN departments ON roles.department_id = departments.id`,
+        (err, result) => {
+          console.table(result);
+          choices();
+        }
       );
-     
     } else if (answers.choice === "Add a department") {
       prompt({
         name: "department",
@@ -142,7 +143,7 @@ const choices = () => {
           (err, resultEmployees) => {
             resultEmployees = resultEmployees.map((emp) => {
               return {
-                name: emp.first_name + ' ' + emp.last_name,
+                name: emp.first_name + " " + emp.last_name,
                 value: emp.id,
               };
             });
@@ -195,38 +196,52 @@ const choices = () => {
         );
       });
     } else if (answers.choice === "Update an employee role") {
-        db.query(
-          "SELECT id, first_name, last_name FROM employees",
-          (err, result) => {
-            result = result.map((emp) => {
+      db.query(
+        "SELECT * FROM employees",
+        (err, resultUpdate) => {
+          resultUpdate = resultUpdate.map((emp) => {
+            return {
+              name: emp.first_name + " " + emp.last_name,
+              value: emp.id,
+            };
+          });
+          db.query("SELECT * FROM roles", (err, resultRole) => {
+            resultRole = resultRole.map((role) => {
               return {
-                name: emp.first_name + ' ' + emp.last_name,
-                value: emp.id,
-              };
-            });
-            prompt([
+                name: role.title,
+                value: role.id
+            }});
+            prompt(
               {
-                name: "first",
-                type: "input",
-                message: "What is the name of the employee?",
-                validate: (answer) => {
-                  if (answer != "") {
-                    return true;
+                name: "employee",
+                type: "list",
+                message: "Select employee to update?",
+                choices: resultUpdate,
+              },
+            ).then((answersEmployee) => {
+              prompt(
+                {
+                  name: "role",
+                  type: "list",
+                  message: "Select new role",
+                  choices: resultRole,
+                },
+              ).then((answersRoles) => {
+                db.query(
+                  "UPDATE employees SET role_id = (?) WHERE id = (?)",
+                  [answersRoles.role, answersEmployee.employee],
+                  (err, result) => {
+                    console.log(
+                      "Employee role have been successfully updated"
+                    );
+                    choices();
                   }
-                  return "Please add the name for the employee!";
-                }}
-            ]).then((answers) => {
-              db.query(
-                "INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)",
-                [answers.first, answers.last, answers.role, answers.manager],
-                (err, result) => {
-                  console.log("Employee successfully saved");
-                  choices();
-                }
-              );
+                );
+              });
             });
-          }
-        );
+          });
+        }
+      );
     }
   });
 };
