@@ -19,6 +19,7 @@
   "homepage": "https://github.com/kristiyantefov/Employee-Tracker#readme",
   "dependencies": {
     "console-clear": "^1.1.1",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "figlet": "^1.6.0",
     "inquirer": "^8.2.4",

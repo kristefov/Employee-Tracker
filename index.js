@@ -1,6 +1,6 @@
 // Bring in all helpers and np
 const { prompt } = require("inquirer");
-const db = require("./db/connection");
+const db = require("./config/connection");
 const { exit, clear } = require("./helpers/exit");
 const art = require("./helpers/art");
 // Connection to the database
@@ -29,30 +29,33 @@ const choices = () => {
       "Update an employee role",
       "View employees by manager",
       "View employees by department",
+      "Delete employee",
       "Exit",
     ],
   }).then((answers) => {
     // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
     // This option will present a table with all departments
     if (answers.choice === "View all departments") {
-      db.query("SELECT * FROM departments", (err, result) => {
-        if (err) throw err
-        // This will clear the console from previous results
+      db.query(
+        `SELECT id AS "ID", department_name AS "Department Name" FROM departments`,
+        (err, result) => {
+          if (err) throw err;
+          // This will clear the console from previous results
           clear(true);
           art();
           // This will present a table with the results
           console.table(result);
           // This will start the program again to give you options until you choose exit
           choices();
-        
-      });
+        }
+      );
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
       // This option will present a table with all roles
     } else if (answers.choice === "View all roles") {
       db.query(
-        "SELECT  roles.id, roles.title, departments.department_name, roles.salary FROM roles  JOIN departments ON roles.department_id = departments.id",
+        "SELECT  roles.id AS 'ID', roles.title AS 'Title', departments.department_name AS 'Department Name', roles.salary AS 'Salary' FROM roles  JOIN departments ON roles.department_id = departments.id",
         (err, result) => {
-          if (err) throw err
+          if (err) throw err;
           clear(true);
           art();
           console.table(result);
@@ -64,14 +67,14 @@ const choices = () => {
     } else if (answers.choice === "View all employees") {
       db.query(
         `SELECT 
-      employees.id, employees.first_name, employees.last_name, roles.title, departments.department_name, roles.salary, 
+      employees.id AS "ID", employees.first_name AS "First Name", employees.last_name AS "Last Name", roles.title AS "Title", departments.department_name AS "Department Name", roles.salary AS "Salary", 
       CONCAT(manager.first_name, " ", manager.last_name) AS "Manager"
       FROM employees AS employees
       JOIN employees AS manager ON employees.manager_id = manager.id
       JOIN roles ON employees.role_id = roles.id
       JOIN departments ON roles.department_id = departments.id`,
         (err, result) => {
-          if (err) throw err
+          if (err) throw err;
           clear(true);
           art();
           console.table(result);
@@ -98,7 +101,7 @@ const choices = () => {
           "INSERT INTO departments (department_name) VALUES (?)",
           [answers.department],
           (err, result) => {
-            if (err) throw err
+            if (err) throw err;
             clear(true);
             art();
             console.log("Department successfully saved");
@@ -107,7 +110,7 @@ const choices = () => {
         );
       });
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
-      // This choice will give you option to add new role 
+      // This choice will give you option to add new role
     } else if (answers.choice === "Add a role") {
       clear(true);
       art();
@@ -153,7 +156,7 @@ const choices = () => {
             [answers.title, answers.salary, answers.department],
 
             (err, result) => {
-              if (err) throw err
+              if (err) throw err;
               clear(true);
               art();
               console.log("Role successfully saved");
@@ -223,7 +226,7 @@ const choices = () => {
                 "INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)",
                 [answers.first, answers.last, answers.role, answers.manager],
                 (err, result) => {
-                  if (err) throw err
+                  if (err) throw err;
                   clear(true);
                   art();
                   console.log("Employee successfully saved");
@@ -269,7 +272,7 @@ const choices = () => {
                 "UPDATE employees SET role_id = (?) WHERE id = (?)",
                 [answersRoles.role, answersEmployee.employee],
                 (err, result) => {
-                  if (err) throw err
+                  if (err) throw err;
                   clear(true);
                   console.log("Employee role have been successfully updated");
                   choices();
@@ -280,7 +283,7 @@ const choices = () => {
         });
       });
       // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
-      // This option will present a table with all employees by manager 
+      // This option will present a table with all employees by manager
     } else if (answers.choice === "View employees by manager") {
       db.query(
         `SELECT  employees.first_name, employees.last_name, employees.id, employees.manager_id, CONCAT (manager.first_name, " ", manager.last_name) AS "Manager" FROM employees LEFT JOIN employees AS manager ON employees.manager_id = manager.id ORDER BY manager`,
@@ -298,9 +301,9 @@ const choices = () => {
             choices: resultsManager,
           }).then((answer) => {
             db.query(
-              `SELECT employees.first_name, employees.last_name, CONCAT (manager.first_name, " ", manager.last_name) AS "Manager" FROM employees JOIN employees AS manager ON employees.manager_id = manager.id WHERE employees.manager_id = ${answer.manager} OR employees.manager_id IS NULL`,
+              `SELECT employees.id AS "ID", employees.first_name AS "First Name", employees.last_name AS "Last Name", CONCAT (manager.first_name, " ", manager.last_name) AS "Manager" FROM employees JOIN employees AS manager ON employees.manager_id = manager.id WHERE employees.manager_id = ${answer.manager} OR employees.manager_id IS NULL`,
               (err, results) => {
-                if (err) throw err
+                if (err) throw err;
                 clear(true);
                 art();
                 console.table(results);
@@ -314,7 +317,7 @@ const choices = () => {
       // This option will present you a table with all employees by department
     } else if (answers.choice === "View employees by department") {
       db.query(`SELECT * FROM departments`, (err, resultsDepartments) => {
-        if (err) throw err
+        if (err) throw err;
         resultsDepartments = resultsDepartments.map((m) => {
           return {
             name: m.department_name,
@@ -335,6 +338,34 @@ const choices = () => {
               clear(true);
               art();
               console.table(results);
+              choices();
+            }
+          );
+        });
+      });
+      // This choice will hive you option to delete existing employee
+    } else if (answers.choice === "Delete employee") {
+      db.query("SELECT * FROM employees", (err, result) => {
+        if (err) throw err;
+        result = result.map((d) => {
+          return {
+            name: d.first_name + " " + d.last_name,
+            value: d.id,
+          };
+        });
+        prompt({
+          name: "delete",
+          type: "list",
+          message: "Select and employee to delete",
+          choices: result,
+        }).then((answers) => {
+          db.query(
+            `DELETE FROM employees WHERE id = ${answers.delete}`,
+            (err, result) => {
+              if (err) throw err;
+              clear(true);
+              console.log("Employee successfully deleted");
+              art();
               choices();
             }
           );
