@@ -1,13 +1,9 @@
+// Bring in all helpers and np
 const { prompt } = require("inquirer");
-const mysql = require("mysql2");
-
-const db = mysql.createConnection({
-  host: "127.0.0.1",
-  user: "root",
-  password: "123456789",
-  database: "registrar_db",
-});
-
+const db = require("./db/connection");
+const { exit, clear } = require("./helpers/exit");
+const art = require("./helpers/art");
+// Connection to the database
 db.connect((err) => {
   if (err) {
     console.log(err);
@@ -15,7 +11,9 @@ db.connect((err) => {
   }
   choices();
 });
-
+// Ascii logo art
+art();
+// Choices for user to make searches
 const choices = () => {
   prompt({
     name: "choice",
@@ -29,36 +27,62 @@ const choices = () => {
       "Add a role",
       "Add an employee",
       "Update an employee role",
+      "View employees by manager",
+      "View employees by department",
+      "Exit",
     ],
   }).then((answers) => {
+    // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+    // This option will present a table with all departments
     if (answers.choice === "View all departments") {
       db.query("SELECT * FROM departments", (err, result) => {
-        console.table(result);
-        choices();
+        if (err) throw err
+        // This will clear the console from previous results
+          clear(true);
+          art();
+          // This will present a table with the results
+          console.table(result);
+          // This will start the program again to give you options until you choose exit
+          choices();
+        
       });
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This option will present a table with all roles
     } else if (answers.choice === "View all roles") {
       db.query(
         "SELECT  roles.id, roles.title, departments.department_name, roles.salary FROM roles  JOIN departments ON roles.department_id = departments.id",
         (err, result) => {
+          if (err) throw err
+          clear(true);
+          art();
           console.table(result);
           choices();
         }
       );
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This option will present a table with all employees
     } else if (answers.choice === "View all employees") {
       db.query(
         `SELECT 
       employees.id, employees.first_name, employees.last_name, roles.title, departments.department_name, roles.salary, 
       CONCAT(manager.first_name, " ", manager.last_name) AS "Manager"
       FROM employees AS employees
-      LEFT JOIN employees AS manager ON employees.manager_id = manager.id
+      JOIN employees AS manager ON employees.manager_id = manager.id
       JOIN roles ON employees.role_id = roles.id
       JOIN departments ON roles.department_id = departments.id`,
         (err, result) => {
+          if (err) throw err
+          clear(true);
+          art();
           console.table(result);
           choices();
         }
       );
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This choice will give you an option to add new department
     } else if (answers.choice === "Add a department") {
+      clear(true);
+      art();
       prompt({
         name: "department",
         type: "input",
@@ -70,17 +94,23 @@ const choices = () => {
           return "Please add the name of the department!";
         },
       }).then((answers) => {
-        console.log(answers);
         db.query(
           "INSERT INTO departments (department_name) VALUES (?)",
           [answers.department],
           (err, result) => {
+            if (err) throw err
+            clear(true);
+            art();
             console.log("Department successfully saved");
             choices();
           }
         );
       });
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This choice will give you option to add new role 
     } else if (answers.choice === "Add a role") {
+      clear(true);
+      art();
       db.query("SELECT * FROM departments", (err, result) => {
         result = result.map((departments) => {
           return {
@@ -123,14 +153,20 @@ const choices = () => {
             [answers.title, answers.salary, answers.department],
 
             (err, result) => {
-              console.log(answers);
+              if (err) throw err
+              clear(true);
+              art();
               console.log("Role successfully saved");
               choices();
             }
           );
         });
       });
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This choice will give you option to add new employee
     } else if (answers.choice === "Add an employee") {
+      clear(true);
+      art();
       db.query("SELECT * FROM roles", (err, resultRoles) => {
         resultRoles = resultRoles.map((roles) => {
           return {
@@ -139,7 +175,7 @@ const choices = () => {
           };
         });
         db.query(
-          "SELECT id, first_name, last_name FROM employees WHERE manager_id IS NULL",
+          "SELECT id, first_name, last_name FROM employees",
           (err, resultEmployees) => {
             resultEmployees = resultEmployees.map((emp) => {
               return {
@@ -151,7 +187,7 @@ const choices = () => {
               {
                 name: "first",
                 type: "input",
-                message: "What is the name of the employee?",
+                message: "What is the first name of the employee?",
                 validate: (answer) => {
                   if (answer != "") {
                     return true;
@@ -180,13 +216,16 @@ const choices = () => {
                 name: "manager",
                 type: "list",
                 message: "Select a Manager?",
-                choices: resultEmployees || null,
+                choices: resultEmployees,
               },
             ]).then((answers) => {
               db.query(
                 "INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)",
                 [answers.first, answers.last, answers.role, answers.manager],
                 (err, result) => {
+                  if (err) throw err
+                  clear(true);
+                  art();
                   console.log("Employee successfully saved");
                   choices();
                 }
@@ -195,53 +234,115 @@ const choices = () => {
           }
         );
       });
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This choice will give you option to update existing employee
     } else if (answers.choice === "Update an employee role") {
-      db.query(
-        "SELECT * FROM employees",
-        (err, resultUpdate) => {
-          resultUpdate = resultUpdate.map((emp) => {
+      clear(true);
+      art();
+      db.query("SELECT * FROM employees", (err, resultUpdate) => {
+        resultUpdate = resultUpdate.map((emp) => {
+          return {
+            name: emp.first_name + " " + emp.last_name,
+            value: emp.id,
+          };
+        });
+        db.query("SELECT * FROM roles", (err, resultRole) => {
+          resultRole = resultRole.map((role) => {
             return {
-              name: emp.first_name + " " + emp.last_name,
-              value: emp.id,
+              name: role.title,
+              value: role.id,
             };
           });
-          db.query("SELECT * FROM roles", (err, resultRole) => {
-            resultRole = resultRole.map((role) => {
-              return {
-                name: role.title,
-                value: role.id
-            }});
-            prompt(
-              {
-                name: "employee",
-                type: "list",
-                message: "Select employee to update?",
-                choices: resultUpdate,
-              },
-            ).then((answersEmployee) => {
-              prompt(
-                {
-                  name: "role",
-                  type: "list",
-                  message: "Select new role",
-                  choices: resultRole,
-                },
-              ).then((answersRoles) => {
-                db.query(
-                  "UPDATE employees SET role_id = (?) WHERE id = (?)",
-                  [answersRoles.role, answersEmployee.employee],
-                  (err, result) => {
-                    console.log(
-                      "Employee role have been successfully updated"
-                    );
-                    choices();
-                  }
-                );
-              });
+          prompt({
+            name: "employee",
+            type: "list",
+            message: "Select employee to update?",
+            choices: resultUpdate,
+          }).then((answersEmployee) => {
+            prompt({
+              name: "role",
+              type: "list",
+              message: "Select new role",
+              choices: resultRole,
+            }).then((answersRoles) => {
+              db.query(
+                "UPDATE employees SET role_id = (?) WHERE id = (?)",
+                [answersRoles.role, answersEmployee.employee],
+                (err, result) => {
+                  if (err) throw err
+                  clear(true);
+                  console.log("Employee role have been successfully updated");
+                  choices();
+                }
+              );
             });
+          });
+        });
+      });
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This option will present a table with all employees by manager 
+    } else if (answers.choice === "View employees by manager") {
+      db.query(
+        `SELECT  employees.first_name, employees.last_name, employees.id, employees.manager_id, CONCAT (manager.first_name, " ", manager.last_name) AS "Manager" FROM employees LEFT JOIN employees AS manager ON employees.manager_id = manager.id ORDER BY manager`,
+        (err, resultsManager) => {
+          resultsManager = resultsManager.map((m) => {
+            return {
+              name: m.first_name + " " + m.last_name,
+              value: m.id,
+            };
+          });
+          prompt({
+            name: "manager",
+            type: "list",
+            message: "Select manager",
+            choices: resultsManager,
+          }).then((answer) => {
+            db.query(
+              `SELECT employees.first_name, employees.last_name, CONCAT (manager.first_name, " ", manager.last_name) AS "Manager" FROM employees JOIN employees AS manager ON employees.manager_id = manager.id WHERE employees.manager_id = ${answer.manager} OR employees.manager_id IS NULL`,
+              (err, results) => {
+                if (err) throw err
+                clear(true);
+                art();
+                console.table(results);
+                choices();
+              }
+            );
           });
         }
       );
+      // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX //
+      // This option will present you a table with all employees by department
+    } else if (answers.choice === "View employees by department") {
+      db.query(`SELECT * FROM departments`, (err, resultsDepartments) => {
+        if (err) throw err
+        resultsDepartments = resultsDepartments.map((m) => {
+          return {
+            name: m.department_name,
+            value: m.id,
+          };
+        });
+        prompt({
+          name: "department",
+          type: "list",
+          message: "Select department",
+          choices: resultsDepartments,
+        }).then((answer) => {
+          db.query(
+            `SELECT employees_roles.id, first_name, last_name, title, department_name  FROM (SELECT employees.id, first_name, last_name, title, department_id FROM employees JOIN roles ON employees.role_id = roles.id WHERE roles.department_id = ?) AS employees_roles JOIN departments ON employees_roles.department_id = departments.id`,
+            [answer.department],
+            (err, results) => {
+              if (err) throw err;
+              clear(true);
+              art();
+              console.table(results);
+              choices();
+            }
+          );
+        });
+      });
+    } else {
+      // This function will close the program
+      exit();
     }
   });
 };

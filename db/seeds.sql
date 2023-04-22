@@ -1,3 +1,5 @@
+-- Dummy data to test the app
+-- Insert data into table departments
 INSERT INTO departments (department_name)
 VALUES
   ('Sales'),
@@ -10,7 +12,7 @@ VALUES
   ('Operations');
   
 
-
+-- Insert data into table roles
 INSERT INTO roles (title, salary, department_id)
 VALUES
   ('Sales Manager', 80000.00, 1),
@@ -25,7 +27,7 @@ VALUES
 
 
 
-
+-- Insert into table employees
 INSERT INTO employees (first_name, last_name, role_id, manager_id) 
 VALUES
   ('John', 'Doe', 1, NULL),

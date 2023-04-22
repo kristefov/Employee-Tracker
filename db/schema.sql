@@ -1,13 +1,14 @@
+-- Create database called registar_db
 DROP DATABASE IF EXISTS registrar_db;
 CREATE DATABASE registrar_db;
-
+-- Use the created database
 USE registrar_db;
-
+-- Table departments created
 CREATE TABLE departments (
   id INT PRIMARY KEY AUTO_INCREMENT,
   department_name VARCHAR(30) NOT NULL 
 );
-
+-- Table roles created
 CREATE TABLE roles (
   id INT PRIMARY KEY AUTO_INCREMENT,
   title VARCHAR(60) NOT NULL,
@@ -16,7 +17,7 @@ CREATE TABLE roles (
   FOREIGN KEY (department_id)
   REFERENCES departments(id)
 );
-
+-- Table employees created
 CREATE TABLE employees (
   id INT PRIMARY KEY AUTO_INCREMENT,
   first_name VARCHAR(30) NOT NULL,
