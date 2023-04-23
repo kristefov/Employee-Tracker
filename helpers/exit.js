@@ -5,7 +5,7 @@ const db = require("../config/connection");
 const exit = () => {
   db.end();
   clear(true);
-  console.log("Goodbye");
+  console.log("Goodbye!!!");
 };
 
 module.exports = {
