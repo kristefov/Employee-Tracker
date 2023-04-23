@@ -9,6 +9,7 @@ db.connect((err) => {
     console.log(err);
     return "There was an error connecting to the database.";
   }
+  // Run function choices to start the program and give you options
   choices();
 });
 // Ascii logo art

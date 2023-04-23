@@ -1,4 +1,4 @@
--- Create database called registar_db
+-- Create database called registrar_db
 DROP DATABASE IF EXISTS registrar_db;
 CREATE DATABASE registrar_db;
 -- Use the created database
